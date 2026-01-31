@@ -7,8 +7,7 @@ import csv
 from faker import Faker
 
 def get_free_proxies():
-    """Sources IPs automatically from multiple public providers"""
-    print("Sourcing fresh IPs from public providers...")
+    print("Sourcing fresh IPs from public providers...", flush=True)
     sources = [
         "https://www.proxy-list.download/api/v1/get?type=https",
         "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
@@ -23,53 +22,54 @@ def get_free_proxies():
                 proxies.extend([p.strip() for p in extracted if p.strip()])
         except:
             continue
-    print(f"Total IPs sourced: {len(proxies)}")
-    return list(set(proxies)) # Remove duplicates
+    found = list(set(proxies))
+    print(f"Total IPs sourced: {len(found)}", flush=True)
+    return found
 
 def run_scraper():
-    # 1. Inputs & Interface Logic
     engine = os.getenv('ENGINE', 'google')
     raw_domains = os.getenv('UI_DOMAINS') or os.getenv('TARGET_DOMAINS', 'gmx.com')
     target_domains = [d.strip() for d in raw_domains.split(',')]
     keywords = os.getenv('UI_KEYWORDS') or os.getenv('SEARCH_BASE_QUERY', 'CEO')
     
-    # Source the IPs
     proxy_pool = get_free_proxies()
-    
     fake = Faker('en_US')
     name = fake.first_name()
     domain_query = " OR ".join([f'"@{d}"' for d in target_domains])
     full_query = f"{name} {keywords} {domain_query}"
     
-    # 2. Engine Selector
-    if engine == 'bing':
-        base_url = "https://www.bing.com/search?q="
-    elif engine == 'duckduckgo':
-        base_url = "https://html.duckduckgo.com/html/?q="
-    else:
-        base_url = "https://www.google.com/search?q="
+    if engine == 'bing': base_url = "https://www.bing.com/search?q="
+    elif engine == 'duckduckgo': base_url = "https://html.duckduckgo.com/html/?q="
+    else: base_url = "https://www.google.com/search?q="
 
-    # 3. Scraping Loop
     page = 0
-    while page < 3:
+    # Try up to 50 proxies before giving up to save time
+    max_attempts = 50 
+    attempts = 0
+
+    while page < 3 and attempts < max_attempts:
         start_idx = page * 10
         url = f"{base_url}{full_query.replace(' ', '+')}"
         if engine != 'duckduckgo': url += f"&start={start_idx}"
         
-        # IP Selection Logic
         current_proxy = random.choice(proxy_pool) if proxy_pool else None
-        proxies = {"http": f"http://{current_proxy}", "https": f"http://{current_proxy}"} if current_proxy else None
+        proxies = {"http": f"http://{current_proxy}", "https": f"http://{current_proxy}"}
+        
+        print(f"--- Attempt {attempts+1} ---", flush=True)
+        print(f"Using IP: {current_proxy} on {engine.upper()}", flush=True)
 
         try:
-            time.sleep(random.uniform(15, 30))
-            print(f"Using IP: {current_proxy} on {engine.upper()}...")
+            # Shortened jitter for faster testing
+            time.sleep(random.uniform(5, 10))
             
-            response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, proxies=proxies, timeout=20)
+            # STRICT TIMEOUT prevents hanging
+            response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, proxies=proxies, timeout=10)
             
             if response.status_code == 429:
-                print("IP Blocked (Captcha). Swapping IP...")
+                print("Status 429: IP Blocked (Captcha). Rotating...", flush=True)
                 if current_proxy in proxy_pool: proxy_pool.remove(current_proxy)
-                continue # Retry same page with different IP
+                attempts += 1
+                continue
                 
             if response.status_code == 200:
                 emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', response.text)
@@ -82,12 +82,21 @@ def run_scraper():
                         writer = csv.writer(f)
                         if not file_exists: writer.writerow(['Name','Email','Date','Source'])
                         writer.writerows(valid)
+                    print(f"SUCCESS: Found {len(valid)} emails on page {page+1}", flush=True)
+                else:
+                    print(f"Page {page+1} loaded, but no matching emails found.", flush=True)
+                
                 page += 1
-            else: break
+                attempts = 0 # Reset attempts on success
+            else:
+                print(f"Error {response.status_code}. Rotating IP...", flush=True)
+                attempts += 1
         except Exception as e:
-            print(f"Connection Error with {current_proxy}. Rotating...")
+            print(f"Connection Failed (Timeout/Dead Proxy). Rotating...", flush=True)
             if current_proxy in proxy_pool: proxy_pool.remove(current_proxy)
-            continue
+            attempts += 1
+
+    print("Scraper run finished.", flush=True)
 
 if __name__ == "__main__":
     run_scraper()
