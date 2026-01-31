@@ -1,10 +1,23 @@
-name: LegittScra-Secure-Automation
+name: LegittScra-Custom-Interface
 
 on:
   schedule:
-    # Runs every 3 hours (8 times a day)
     - cron: '0 */3 * * *'
-  workflow_dispatch: # Allows manual "Run workflow" button
+  workflow_dispatch:
+    # This section creates the "Interface" pop-up
+    inputs:
+      custom_name:
+        description: 'First Name to search (Leave blank for random)'
+        required: false
+        default: ''
+      custom_keywords:
+        description: 'Keywords (e.g., Treasurer OR CEO)'
+        required: true
+        default: 'Treasurer OR CEO -scam -419 -email'
+      custom_domains:
+        description: 'Domains (comma separated)'
+        required: true
+        default: 'talktalk.net, gmx.com, tiscali.co.uk'
 
 jobs:
   build:
@@ -23,6 +36,10 @@ jobs:
 
       - name: Run Scraper
         env:
+          # Pulls data from the UI inputs OR the Secrets if run automatically
+          UI_NAME: ${{ github.event.inputs.custom_name }}
+          UI_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
+          UI_DOMAINS: ${{ github.event.inputs.custom_domains }}
           TARGET_DOMAINS: ${{ secrets.TARGET_DOMAINS }}
           SEARCH_BASE_QUERY: ${{ secrets.SEARCH_BASE_QUERY }}
         run: python my_scraper.py
@@ -32,6 +49,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          # This will commit if the file is new or updated
-          git commit -m "Auto-sync results: $(date)" || echo "No changes to commit"
+          git commit -m "Manual search results: $(date)" || echo "No changes"
           git push
