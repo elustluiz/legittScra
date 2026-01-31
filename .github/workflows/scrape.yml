@@ -11,17 +11,13 @@ on:
         options: [google, bing, duckduckgo]
         default: 'google'
       custom_location:
-        description: 'Target Location (e.g. London. Leave blank for random)'
+        description: 'Target City/Country (Leave blank for random)'
         required: false
         default: ''
       custom_domains:
-        description: 'Domains (e.g. gmx.com)'
+        description: 'Domains (e.g. gmx.com, talktalk.net)'
         required: true
-        default: 'talktalk.net, gmx.com'
-      custom_keywords:
-        description: 'Keywords'
-        required: true
-        default: 'Treasurer OR CEO'
+        default: 'talktalk.net, gmx.com, tiscali.co.uk'
 
 jobs:
   build:
@@ -55,7 +51,7 @@ jobs:
           except Exception as e: print(f'VPN Fetch Failed: {e}')
           "
           sudo openvpn --config client.ovpn --daemon
-          sleep 10 # Wait for connection
+          sleep 10
 
       - name: Run Scraper
         env:
@@ -63,9 +59,6 @@ jobs:
           ENGINE: ${{ github.event.inputs.search_engine }}
           UI_LOCATION: ${{ github.event.inputs.custom_location }}
           UI_DOMAINS: ${{ github.event.inputs.custom_domains }}
-          UI_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
-          TARGET_DOMAINS: ${{ secrets.TARGET_DOMAINS }}
-          SEARCH_BASE_QUERY: ${{ secrets.SEARCH_BASE_QUERY }}
         run: python my_scraper.py
       
       - name: Commit and Push Data
@@ -73,5 +66,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Results Sync: $(date)" || echo "No changes"
+          git commit -m "Scrape Sync: $(date)" || echo "No changes to commit"
           git push
