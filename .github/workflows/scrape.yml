@@ -1,4 +1,73 @@
-- name: Run Scraper
+name: LegittScra-Ultimate-Harvester
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      search_engine:
+        description: 'Choose Search Engine'
+        type: choice
+        options: [google, bing, duckduckgo]
+        default: 'google'
+      search_depth:
+        description: 'Number of pages to harvest'
+        type: choice
+        options: ['1', '3', '5', '10']
+        default: '3'
+      custom_query:
+        description: 'Full Search String (e.g. "Abby" CEO "@talktalk.net")'
+        required: false
+        default: ''
+      output_mode:
+        description: 'Output Format'
+        type: choice
+        options: [csv_rows, giant_text_file]
+        default: 'csv_rows'
+      custom_location:
+        description: 'Target Location (Used if Query is blank)'
+        required: false
+        default: ''
+      custom_domains:
+        description: 'Target Domains (Used if Query is blank)'
+        required: true
+        default: 'talktalk.net, gmx.com'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install OpenVPN
+        run: sudo apt-get update && sudo apt-get install -y openvpn
+
+      - name: Fetch and Connect VPN
+        run: |
+          python3 -c "
+          import requests, base64, random
+          try:
+              r = requests.get('http://www.vpngate.net/api/iphone/', timeout=20)
+              servers = [s.split(',') for s in r.text.split('\n')[2:] if len(s.split(',')) > 14]
+              chosen = random.choice(servers)
+              with open('client.ovpn', 'wb') as f:
+                  f.write(base64.b64decode(chosen[-1]))
+              print(f'Using {chosen[6]} VPN...')
+          except Exception as e: print(f'VPN Fetch Failed: {e}')
+          "
+          sudo openvpn --config client.ovpn --daemon
+          sleep 10
+
+      - name: Run Scraper
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
@@ -13,7 +82,5 @@
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          # Wildcard adds every unique harvest file created during the run
-          git add harvest_*.csv harvest_*.txt
-          git commit -m "New harvest files: $(date)" || echo "No changes"
-          git push
+          # Wildcard ensures all timestamped files are pushed
+          git add harvest
