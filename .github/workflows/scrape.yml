@@ -1,0 +1,34 @@
+name: LegittScra-High-Frequency
+
+on:
+  schedule:
+    # Runs every 48 minutes (~30 times a day)
+    - cron: '*/48 * * * *'
+  workflow_dispatch: # Allows you to run it manually for testing
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Run Scraper
+        run: python my_scraper.py
+
+      - name: Commit and Push Data
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add results.csv
+          git commit -m "Auto-update: $(date)" || exit 0
+          git push
