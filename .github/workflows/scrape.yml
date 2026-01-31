@@ -1,10 +1,10 @@
-name: LegittScra-High-Frequency
+name: LegittScra-Secure-Automation
 
 on:
   schedule:
-    # Runs every 48 minutes (~30 times a day)
-    - cron: '*/48 * * * *'
-  workflow_dispatch: # Allows you to run it manually for testing
+    # Runs every 3 hours (8 times a day)
+    - cron: '0 */3 * * *'
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
   build:
@@ -19,10 +19,13 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: |
-          pip install requests beautifulsoup4
+        run: pip install requests beautifulsoup4 faker
 
       - name: Run Scraper
+        env:
+          # This maps your GitHub Secrets to Python variables
+          TARGET_DOMAINS: ${{ secrets.TARGET_DOMAINS }}
+          SEARCH_BASE_QUERY: ${{ secrets.SEARCH_BASE_QUERY }}
         run: python my_scraper.py
 
       - name: Commit and Push Data
@@ -30,5 +33,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Auto-update: $(date)" || exit 0
+          git commit -m "Auto-sync results: $(date)" || exit 0
           git push
