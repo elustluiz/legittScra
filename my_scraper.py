@@ -39,7 +39,7 @@ def run_scraper():
                 print(f"Phase 2: Swapping to Proxy {p}", flush=True)
 
         try:
-            # STRICT 10s TIMEOUT prevents the "hanging" you saw earlier
+            # STRICT 10s TIMEOUT prevents "hanging"
             response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, 
                                     proxies=proxies, timeout=10)
             
