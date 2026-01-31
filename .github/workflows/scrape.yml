@@ -1,23 +1,26 @@
-name: LegittScra-Custom-Interface
+name: LegittScra-Multi-Engine-Interface
 
 on:
   schedule:
     - cron: '0 */3 * * *'
   workflow_dispatch:
-    # This section creates the "Interface" pop-up
     inputs:
-      custom_name:
-        description: 'First Name to search (Leave blank for random)'
-        required: false
-        default: ''
+      search_engine:
+        description: 'Choose Search Engine'
+        type: choice
+        options:
+          - google
+          - bing
+          - duckduckgo
+        default: 'google'
+      custom_domains:
+        description: 'Domains (e.g., talktalk.net, gmx.com)'
+        required: true
+        default: 'talktalk.net, gmx.com, tiscali.co.uk'
       custom_keywords:
         description: 'Keywords (e.g., Treasurer OR CEO)'
         required: true
-        default: 'Treasurer OR CEO -scam -419 -email'
-      custom_domains:
-        description: 'Domains (comma separated)'
-        required: true
-        default: 'talktalk.net, gmx.com, tiscali.co.uk'
+        default: 'Treasurer OR CEO'
 
 jobs:
   build:
@@ -36,10 +39,9 @@ jobs:
 
       - name: Run Scraper
         env:
-          # Pulls data from the UI inputs OR the Secrets if run automatically
-          UI_NAME: ${{ github.event.inputs.custom_name }}
-          UI_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
+          ENGINE: ${{ github.event.inputs.search_engine }}
           UI_DOMAINS: ${{ github.event.inputs.custom_domains }}
+          UI_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
           TARGET_DOMAINS: ${{ secrets.TARGET_DOMAINS }}
           SEARCH_BASE_QUERY: ${{ secrets.SEARCH_BASE_QUERY }}
         run: python my_scraper.py
@@ -49,5 +51,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Manual search results: $(date)" || echo "No changes"
+          git commit -m "Scrape Results from ${{ github.event.inputs.search_engine }}: $(date)" || echo "No changes"
           git push
