@@ -1,4 +1,4 @@
-name: LegittScra-Multi-Engine-Interface
+name: LegittScra-Advanced-Interface
 
 on:
   schedule:
@@ -18,7 +18,7 @@ on:
         required: true
         default: 'talktalk.net, gmx.com, tiscali.co.uk'
       custom_keywords:
-        description: 'Keywords (e.g., Treasurer OR CEO)'
+        description: 'Search Keywords'
         required: true
         default: 'Treasurer OR CEO'
 
@@ -39,6 +39,8 @@ jobs:
 
       - name: Run Scraper
         env:
+          # FORCES REAL-TIME LOGGING
+          PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
           UI_DOMAINS: ${{ github.event.inputs.custom_domains }}
           UI_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
@@ -51,5 +53,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Scrape Results from ${{ github.event.inputs.search_engine }}: $(date)" || echo "No changes"
+          git commit -m "Scrape Results: $(date)" || echo "No changes"
           git push
