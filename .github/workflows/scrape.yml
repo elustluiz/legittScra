@@ -1,4 +1,4 @@
-name: LegittScra-Global-Interface
+name: LegittScra-Ultimate-IP-Logic
 
 on:
   schedule:
@@ -6,20 +6,20 @@ on:
   workflow_dispatch:
     inputs:
       search_engine:
-        description: 'Search Engine'
+        description: 'Choose Search Engine'
         type: choice
         options: [google, bing, duckduckgo]
         default: 'google'
       custom_location:
-        description: 'Target Location (e.g. Lagos, London, or New York. Leave blank for random)'
+        description: 'Target Location (e.g. London. Leave blank for random)'
         required: false
         default: ''
       custom_domains:
-        description: 'Domains (comma separated)'
+        description: 'Domains (e.g. gmx.com)'
         required: true
-        default: 'talktalk.net, gmx.com, tiscali.co.uk'
+        default: 'talktalk.net, gmx.com'
       custom_keywords:
-        description: 'Search Keywords'
+        description: 'Keywords'
         required: true
         default: 'Treasurer OR CEO'
 
@@ -39,29 +39,24 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install OpenVPN
-        run: sudo apt update && sudo apt install -y openvpn
+        run: sudo apt-get update && sudo apt-get install -y openvpn
 
-      - name: Fetch Fresh VPN (Global Match)
+      - name: Fetch and Connect VPN
         run: |
           python3 -c "
           import requests, base64, random
           try:
               r = requests.get('http://www.vpngate.net/api/iphone/', timeout=20)
-              data = r.text.split('\n')[2:] 
-              servers = [s.split(',') for s in data if len(s.split(',')) > 14]
+              servers = [s.split(',') for s in r.text.split('\n')[2:] if len(s.split(',')) > 14]
               chosen = random.choice(servers)
               with open('client.ovpn', 'wb') as f:
                   f.write(base64.b64decode(chosen[-1]))
-              print(f'Using {chosen[6]} VPN for global coverage')
-          except Exception as e:
-              print(f'VPN Fetch Failed: {e}')
+              print(f'Using {chosen[6]} VPN...')
+          except Exception as e: print(f'VPN Fetch Failed: {e}')
           "
-
-      - name: Connect to VPN
-        uses: dbritto-dev/openvpn3-action@main
-        continue-on-error: true
-        with:
-          vpn-client-config: 'client.ovpn'
+          # Start VPN in background
+          sudo openvpn --config client.ovpn --daemon
+          sleep 10 # Wait for connection
 
       - name: Run Scraper
         env:
