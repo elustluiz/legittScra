@@ -1,4 +1,4 @@
-name: LegittScra-Ultimate-IP-Logic
+name: LegittScra-Global-Interface
 
 on:
   schedule:
@@ -6,16 +6,20 @@ on:
   workflow_dispatch:
     inputs:
       search_engine:
-        description: 'Choose Search Engine'
+        description: 'Search Engine'
         type: choice
         options: [google, bing, duckduckgo]
         default: 'google'
+      custom_location:
+        description: 'Target Location (e.g. Lagos, London, or New York. Leave blank for random)'
+        required: false
+        default: ''
       custom_domains:
-        description: 'Target Domains (comma separated)'
+        description: 'Domains (comma separated)'
         required: true
         default: 'talktalk.net, gmx.com, tiscali.co.uk'
       custom_keywords:
-        description: 'Keywords (e.g., Treasurer OR CEO)'
+        description: 'Search Keywords'
         required: true
         default: 'Treasurer OR CEO'
 
@@ -37,40 +41,33 @@ jobs:
       - name: Install OpenVPN
         run: sudo apt update && sudo apt install -y openvpn
 
-      - name: Automatically Fetch Fresh VPN Config (Filtered by Country)
+      - name: Fetch Fresh VPN (Global Match)
         run: |
           python3 -c "
           import requests, base64, random
           try:
-              # PRIORITY COUNTRIES: Edit this list to target specific regions
-              target_countries = ['United Kingdom', 'United States', 'Japan', 'France']
-              
               r = requests.get('http://www.vpngate.net/api/iphone/', timeout=20)
               data = r.text.split('\n')[2:] 
               servers = [s.split(',') for s in data if len(s.split(',')) > 14]
-              
-              # Filter for target countries
-              filtered = [s for s in servers if s[6] in target_countries]
-              pool = filtered if filtered else servers
-              chosen = random.choice(pool)
-              
+              chosen = random.choice(servers)
               with open('client.ovpn', 'wb') as f:
                   f.write(base64.b64decode(chosen[-1]))
-              print(f'Successfully fetched {chosen[6]} VPN: {chosen[1]}')
+              print(f'Using {chosen[6]} VPN for global coverage')
           except Exception as e:
-              print(f'Failed to fetch VPN: {e}')
+              print(f'VPN Fetch Failed: {e}')
           "
 
       - name: Connect to VPN
         uses: dbritto-dev/openvpn3-action@main
-        continue-on-error: true # Ensures script runs even if VPN server is down
+        continue-on-error: true
         with:
           vpn-client-config: 'client.ovpn'
 
       - name: Run Scraper
         env:
-          PYTHONUNBUFFERED: "1" # Ensures real-time logs
+          PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
+          UI_LOCATION: ${{ github.event.inputs.custom_location }}
           UI_DOMAINS: ${{ github.event.inputs.custom_domains }}
           UI_KEYWORDS: ${{ github.event.inputs.custom_keywords }}
           TARGET_DOMAINS: ${{ secrets.TARGET_DOMAINS }}
@@ -82,5 +79,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Results Update: $(date)" || echo "No changes"
+          git commit -m "Global Sync: $(date)" || echo "No changes"
           git push
