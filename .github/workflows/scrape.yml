@@ -1,4 +1,4 @@
-name: LegittScra-Bulk-Harvester
+name: LegittScra-Manual-Bulk-Harvester
 
 on:
   schedule:
@@ -10,12 +10,16 @@ on:
         type: choice
         options: [google, bing, duckduckgo]
         default: 'google'
+      custom_query:
+        description: 'Full Search String (e.g. "Abby" CEO "@talktalk.net"). Leave blank for auto-generate.'
+        required: false
+        default: ''
       custom_location:
-        description: 'Target Location (Leave blank for random)'
+        description: 'Target Location (Only used if Query is blank)'
         required: false
         default: ''
       custom_domains:
-        description: 'Domains (e.g. gmx.com, talktalk.net)'
+        description: 'Target Domains (Only used if Query is blank)'
         required: true
         default: 'talktalk.net, gmx.com'
 
@@ -57,6 +61,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
+          UI_QUERY: ${{ github.event.inputs.custom_query }}
           UI_LOCATION: ${{ github.event.inputs.custom_location }}
           UI_DOMAINS: ${{ github.event.inputs.custom_domains }}
         run: python my_scraper.py
@@ -66,5 +71,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add raw_harvest.csv
-          git commit -m "Bulk harvest sync: $(date)" || echo "No changes"
+          git commit -m "Manual harvest sync: $(date)" || echo "No changes"
           git push
