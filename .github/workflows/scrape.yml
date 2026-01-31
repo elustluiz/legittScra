@@ -54,7 +54,6 @@ jobs:
               print(f'Using {chosen[6]} VPN...')
           except Exception as e: print(f'VPN Fetch Failed: {e}')
           "
-          # Start VPN in background
           sudo openvpn --config client.ovpn --daemon
           sleep 10 # Wait for connection
 
@@ -74,5 +73,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Global Sync: $(date)" || echo "No changes"
+          git commit -m "Results Sync: $(date)" || echo "No changes"
           git push
