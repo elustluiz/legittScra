@@ -3,12 +3,12 @@ from faker import Faker
 
 def extract_emails(text):
     """Decodes URL encoding and captures email patterns"""
-    # Fixes the %22 junk seen in image_e89af1.png
+    # Fixes the encoding issues seen in your earlier results
     decoded = urllib.parse.unquote(text)
     return re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', decoded)
 
 def run_scraper():
-    # Setup unique CSV file with headers for your ProBook
+    # Setup unique CSV file for your project
     timestamp = time.strftime("%Y%m%d_%H%M")
     file_path = f'harvest_{timestamp}.csv'
     
@@ -21,44 +21,49 @@ def run_scraper():
     manual_query = os.getenv('UI_QUERY')
     target_domains = ['talktalk.net', 'gmx.com', 'tiscali.co.uk']
     
+    # NEW: Contact Keyword Generator
+    contact_keywords = ["Contact Us", "About", "Staff", "Management", "Inquiry"]
     fake = Faker()
-    print(f"--- High-Volume Extraction Active (20 links/page) ---", flush=True)
+
+    print(f"--- Deep Scan Mode: 20 sites/page with Keyword Rotation ---", flush=True)
 
     for page in range(depth):
-        query = manual_query if manual_query else f'"{fake.first_name()}" CEO "@talktalk.net"'
-        print(f"--- Processing Page {page+1} ---", flush=True)
+        # Rotate contact keywords to find high-value pages
+        suffix = random.choice(contact_keywords)
+        if manual_query:
+            full_query = f"{manual_query} {suffix}"
+        else:
+            full_query = f'"{fake.first_name()}" CEO {suffix} "@talktalk.net"'
         
-        search_url = f"https://www.{engine}.com/search?q={query.replace(' ', '+')}"
+        print(f"--- Page {page+1} | Searching: {full_query} ---", flush=True)
+        search_url = f"https://www.{engine}.com/search?q={full_query.replace(' ', '+')}"
         if engine != 'duckduckgo': search_url += f"&start={page * 10}"
 
         try:
-            time.sleep(random.uniform(15, 25)) # Stealth delay
+            time.sleep(random.uniform(15, 30)) # Stealth delay
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
             res = requests.get(search_url, headers=headers, timeout=20)
             
             if res.status_code == 200:
-                # Extract all possible links from search results
+                # Extract and visit links
                 links = re.findall(r'https?://[^\s<>"]+|www\.[^\s<>"]+', res.text)
                 clean_links = [l for l in links if "google" not in l and "facebook" not in l]
-                
-                # UPDATED LIMIT: Visiting up to 20 unique links per page
                 target_links = list(set(clean_links))[:20] 
                 
                 for link in target_links:
                     try:
                         print(f"Visiting: {link}", flush=True)
-                        # Short timeout for individual sites to keep the run moving
-                        site_res = requests.get(link, headers=headers, timeout=10)
+                        site_res = requests.get(link, headers=headers, timeout=12)
                         emails = extract_emails(site_res.text)
                         
-                        # Save only emails matching your Nigerian/UK targets
                         valid = [e.lower() for e in emails if any(d in e.lower() for d in target_domains)]
                         
                         if valid:
                             with open(file_path, 'a', newline='', encoding='utf-8') as f:
                                 writer = csv.writer(f)
                                 for email in set(valid):
-                                    writer.writerow([email, link, query, time.strftime("%Y-%m-%d")])
+                                    writer.writerow([email, link, full_query, time.strftime("%Y-%m-%d")])
+                                    print(f"  [+] Found: {email}", flush=True)
                     except:
                         continue
             else:
