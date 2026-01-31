@@ -4,7 +4,7 @@ on:
   schedule:
     # Runs every 3 hours (8 times a day)
     - cron: '0 */3 * * *'
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch: # Allows manual "Run workflow" button
 
 jobs:
   build:
@@ -19,11 +19,11 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 faker
+        run: pip install -r requirements.txt
 
       - name: Run Scraper
         env:
-          # This maps your GitHub Secrets to Python variables
+          # Pulls the secrets you saved in Settings
           TARGET_DOMAINS: ${{ secrets.TARGET_DOMAINS }}
           SEARCH_BASE_QUERY: ${{ secrets.SEARCH_BASE_QUERY }}
         run: python my_scraper.py
