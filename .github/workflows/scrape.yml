@@ -9,10 +9,14 @@ on:
         options: [google, bing, duckduckgo]
         default: 'google'
       search_depth:
-        description: 'Pages to Harvest'
+        description: 'Pages'
         type: choice
         options: ['1', '5', '10']
         default: '10'
+      custom_query:
+        description: 'Full Search String (e.g. "Abby" CEO "@talktalk.net")'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -37,12 +41,13 @@ jobs:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
           DEPTH: ${{ github.event.inputs.search_depth }}
+          UI_QUERY: ${{ github.event.inputs.custom_query }}
         run: python my_scraper.py
       
       - name: Commit and Push Data
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add harvest_*.txt || echo "No files to add"
-          git commit -m "Bulk harvest sync: $(date)" || echo "No changes"
+          git add harvest_*.txt || echo "No files found"
+          git commit -m "Manual harvest: $(date)" || echo "No changes"
           git push
