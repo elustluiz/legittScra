@@ -1,4 +1,4 @@
-name: LegittScra-Advanced-Interface
+name: LegittScra-Ultimate-IP-Logic
 
 on:
   schedule:
@@ -8,10 +8,7 @@ on:
       search_engine:
         description: 'Choose Search Engine'
         type: choice
-        options:
-          - google
-          - bing
-          - duckduckgo
+        options: [google, bing, duckduckgo]
         default: 'google'
       custom_domains:
         description: 'Domains (e.g., talktalk.net, gmx.com)'
@@ -37,9 +34,33 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Install OpenVPN
+        run: sudo apt update && sudo apt install -y openvpn
+
+      - name: Automatically Fetch Fresh VPN Config
+        run: |
+          python3 -c "
+          import requests, base64, random
+          try:
+              r = requests.get('http://www.vpngate.net/api/iphone/', timeout=20)
+              data = r.text.split('\n')[2:] 
+              servers = [s.split(',') for s in data if len(s.split(',')) > 14]
+              chosen = random.choice(servers)
+              with open('client.ovpn', 'wb') as f:
+                  f.write(base64.b64decode(chosen[-1]))
+              print(f'Successfully fetched VPN: {chosen[1]}')
+          except Exception as e:
+              print(f'Failed to fetch VPN: {e}')
+          "
+
+      - name: Connect to VPN
+        uses: dbritto-dev/openvpn3-action@main
+        continue-on-error: true # Falls back to proxies if VPN fails
+        with:
+          vpn-client-config: 'client.ovpn'
+
       - name: Run Scraper
         env:
-          # FORCES REAL-TIME LOGGING
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
           UI_DOMAINS: ${{ github.event.inputs.custom_domains }}
@@ -47,11 +68,11 @@ jobs:
           TARGET_DOMAINS: ${{ secrets.TARGET_DOMAINS }}
           SEARCH_BASE_QUERY: ${{ secrets.SEARCH_BASE_QUERY }}
         run: python my_scraper.py
-
+      
       - name: Commit and Push Data
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Scrape Results: $(date)" || echo "No changes"
+          git commit -m "Auto-sync results: $(date)" || echo "No changes"
           git push
