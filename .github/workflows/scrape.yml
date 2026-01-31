@@ -11,13 +11,13 @@ on:
         options: [google, bing, duckduckgo]
         default: 'google'
       custom_location:
-        description: 'Target City/Country (Leave blank for random)'
+        description: 'Target Location (Leave blank for random)'
         required: false
         default: ''
       custom_domains:
         description: 'Domains (e.g. gmx.com, talktalk.net)'
         required: true
-        default: 'talktalk.net, gmx.com, tiscali.co.uk'
+        default: 'talktalk.net, gmx.com'
 
 jobs:
   build:
@@ -66,5 +66,5 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add results.csv
-          git commit -m "Scrape Sync: $(date)" || echo "No changes to commit"
+          git commit -m "Auto-clean sync: $(date)" || echo "No new data to commit"
           git push
