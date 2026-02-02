@@ -1,12 +1,17 @@
-name: LegittScra-Deep-Test
+name: LegittScra-Master-Harvester
 
 on:
   workflow_dispatch:
     inputs:
-      target_url:
-        description: 'URL to Crawl (e.g. https://www.example.com)'
-        required: true
-        default: 'https://www.talktalk.co.uk'
+      search_engine:
+        description: 'Engine'
+        type: choice
+        options: [google, bing, duckduckgo]
+        default: 'google'
+      custom_query:
+        description: 'Lead Search String'
+        required: false
+        default: '"CEO" "@talktalk.net"'
 
 jobs:
   build:
@@ -14,24 +19,22 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: Install dependencies
-        run: pip install scrapy requests
-
-      - name: Run Scrapy Test
-        run: |
-          # Executes the spider directly using the URL input
-          scrapy runspider my_scraper.py -a url="${{ github.event.inputs.target_url }}"
-      
-      - name: Commit and Push Data
+        run: pip install scrapy requests faker
+      - name: Run Master Scraper
+        env:
+          PYTHONUNBUFFERED: "1"
+          ENGINE: ${{ github.event.inputs.search_engine }}
+          UI_QUERY: ${{ github.event.inputs.custom_query }}
+        run: python my_scraper.py
+      - name: Commit Leads
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add test_harvest_*.csv
-          git commit -m "Deep test results: $(date)" || echo "No emails found"
+          git add final_leads_*.csv
+          git commit -m "New Leads: $(date)" || echo "No leads found"
           git push
