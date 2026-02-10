@@ -1,14 +1,40 @@
-- name: Run Lite 1.6 Scraper
+name: Lite-16-Batch-Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      search_engine:
+        description: 'Engine'
+        type: choice
+        options: [google, bing, duckduckgo]
+        default: 'google'
+      custom_query:
+        description: 'Test Query (e.g. "contact" "@talktalk.net")'
+        required: false
+        default: 'contact "@talktalk.net"'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run Lite 1.6 Test
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
-          DEPTH: '10' # Forced higher depth for batching efficiency
           UI_QUERY: ${{ github.event.inputs.custom_query }}
         run: python my_scraper.py
-      - name: Commit Leads
+      - name: Commit Test Results
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add lite16_batched_*.txt
-          git commit -m "Lite1.6 Batched Results: $(date)" || echo "No leads"
+          git add test_lite16_batch_*.txt
+          git commit -m "Test Batch Results: $(date)" || echo "No leads found"
           git push
