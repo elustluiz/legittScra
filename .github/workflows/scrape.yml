@@ -1,46 +1,14 @@
-name: Lite-16-Bulk-Harvester
-
-on:
-  workflow_dispatch:
-    inputs:
-      search_engine:
-        description: 'Engine'
-        type: choice
-        options: [google, bing, duckduckgo]
-        default: 'google'
-      search_depth:
-        description: 'Pages to Scan (50,000 char limit logic)'
-        type: choice
-        options: ['1', '5', '10']
-        default: '5'
-      custom_query:
-        description: 'Search Base'
-        required: false
-        default: ''
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: pip install requests faker
-      - name: Run Lite 1.6 Scraper
+- name: Run Lite 1.6 Scraper
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
-          DEPTH: ${{ github.event.inputs.search_depth }}
+          DEPTH: '10' # Forced higher depth for batching efficiency
           UI_QUERY: ${{ github.event.inputs.custom_query }}
         run: python my_scraper.py
       - name: Commit Leads
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add lite16_harvest_*.txt
-          git commit -m "Lite1.6 Batch: $(date)" || echo "No leads found"
+          git add lite16_batched_*.txt
+          git commit -m "Lite1.6 Batched Results: $(date)" || echo "No leads"
           git push
