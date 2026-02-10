@@ -9,32 +9,39 @@ on:
         options: [google, bing, duckduckgo]
         default: 'google'
       custom_query:
-        description: 'Test Query (e.g. "contact" "@talktalk.net")'
+        description: 'Search Base (e.g. "Abby" CEO "@talktalk.net")'
         required: false
-        default: 'contact "@talktalk.net"'
+        default: ''
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Essential for pushing files back to your repo
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Install dependencies
-        run: pip install requests
-      - name: Run Lite 1.6 Test
+        run: pip install requests faker # FIX: Added 'faker' here
+
+      - name: Run Lite 1.6 Scraper
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
           UI_QUERY: ${{ github.event.inputs.custom_query }}
         run: python my_scraper.py
-      - name: Commit Test Results
+      
+      - name: Commit and Push Data
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          git add test_lite16_batch_*.txt
-          git commit -m "Test Batch Results: $(date)" || echo "No leads found"
+          # Safely add any harvest files, but don't fail if they don't exist
+          git add harvest_*.txt || echo "No files to add"
+          git commit -m "Batch Harvest: $(date)" || echo "No changes to commit"
           git push
