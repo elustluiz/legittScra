@@ -1,4 +1,4 @@
-name: Lite-16-Batch-Test
+name: Lite-16-High-Volume
 
 on:
   workflow_dispatch:
@@ -8,8 +8,13 @@ on:
         type: choice
         options: [google, bing, duckduckgo]
         default: 'google'
+      search_depth:
+        description: 'Pages (Total Results)'
+        type: choice
+        options: ['1', '5', '10', '20'] # Added 20 here
+        default: '20'
       custom_query:
-        description: 'Search Base (e.g. "Abby" CEO "@talktalk.net")'
+        description: 'Search Base'
         required: false
         default: ''
 
@@ -17,7 +22,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Essential for pushing files back to your repo
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -28,20 +33,21 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install requests faker # FIX: Added 'faker' here
+        # FIX: Explicitly installing faker to prevent the error in image_a1ec76.png
+        run: pip install requests faker
 
       - name: Run Lite 1.6 Scraper
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
+          DEPTH: ${{ github.event.inputs.search_depth }}
           UI_QUERY: ${{ github.event.inputs.custom_query }}
         run: python my_scraper.py
       
-      - name: Commit and Push Data
+      - name: Commit Leads
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          # Safely add any harvest files, but don't fail if they don't exist
-          git add harvest_*.txt || echo "No files to add"
-          git commit -m "Batch Harvest: $(date)" || echo "No changes to commit"
+          git add harvest_*.txt
+          git commit -m "Batch Harvest: $(date)" || echo "No new leads"
           git push
