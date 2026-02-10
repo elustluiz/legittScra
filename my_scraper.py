@@ -1,66 +1,65 @@
 import os, requests, re, time, random, urllib.parse
 from faker import Faker
 
-def lite_16_batch_extractor(text, batch_size=500):
-    """Lite 1.6 Logic: Extract, Deduplicate, and Group by 500"""
+def lite_16_batch_test(text, batch_size=500):
+    """Lite 1.6 Logic: Pattern Matching, Deduplication, and Batching"""
+    # Pattern to find valid emails in raw HTML
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     
-    # 1. Clean and Parse
+    # Clean the raw data to reveal hidden emails
     decoded_text = urllib.parse.unquote(text)
     found_emails = re.findall(email_pattern, decoded_text)
     
-    # 2. Deduplicate and Sort
+    # Remove duplicates and sort alphabetically (Lite 1.6 style)
     unique_emails = sorted(list(set([e.lower() for e in found_emails])))
     
-    # 3. Batching Logic
+    # Organize into batches of 500
     batched_output = []
     for i in range(0, len(unique_emails), batch_size):
         batch_num = (i // batch_size) + 1
-        batched_output.append(f"--- BATCH {batch_num} (Count: {len(unique_emails[i:i+batch_size])}) ---")
+        batched_output.append(f"--- TEST BATCH {batch_num} (Total: {len(unique_emails[i:i+batch_size])}) ---")
         batched_output.extend(unique_emails[i:i+batch_size])
-        batched_output.append("\n") # Add space between groups
+        batched_output.append("\n")
         
     return "\n".join(batched_output), len(unique_emails)
 
-def run_scraper():
+def run_test_scraper():
     engine = os.getenv('ENGINE', 'google')
-    manual_query = os.getenv('UI_QUERY')
-    depth = int(os.getenv('DEPTH', '10')) # Higher depth for larger batches
+    # Using a broad test query to ensure we capture data
+    manual_query = os.getenv('UI_QUERY', 'contact "@talktalk.net"')
+    depth = 10 # 10 pages ensure a larger dataset for the test
     
     timestamp = time.strftime("%Y%m%d_%H%M")
-    output_file = f'lite16_batched_{timestamp}.txt'
+    output_file = f'test_lite16_batch_{timestamp}.txt'
     
-    fake = Faker()
     all_raw_data = ""
-
-    print(f"--- Lite 1.6 High-Volume Batcher Active ---", flush=True)
+    print(f"--- DIAGNOSTIC TEST: Lite 1.6 Batching (10 Pages) ---", flush=True)
 
     for page in range(depth):
-        query = manual_query if manual_query else f'"{fake.first_name()}" CEO "@talktalk.net"'
-        print(f"Page {page+1}: {query}", flush=True)
+        print(f"Harvesting Page {page+1}...", flush=True)
+        url = f"https://www.{engine}.com/search?q={manual_query.replace(' ', '+')}&start={page * 10}"
         
-        url = f"https://www.{engine}.com/search?q={query.replace(' ', '+')}"
-        if engine != 'duckduckgo': url += f"&start={page * 10}"
-
         try:
-            time.sleep(random.uniform(10, 20))
-            res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=20)
+            time.sleep(random.uniform(10, 20)) # Stealth delay to avoid blocks
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            res = requests.get(url, headers=headers, timeout=20)
             if res.status_code == 200:
                 all_raw_data += res.text
             else:
+                print(f"Blocked on Page {page+1} (Status {res.status_code})", flush=True)
                 break
-        except:
-            continue
+        except Exception as e:
+            print(f"Error on Page {page+1}: {e}", flush=True)
 
-    # Apply Lite 1.6 Batching
-    clean_content, total_count = lite_16_batch_extractor(all_raw_data, batch_size=500)
+    # Apply batching logic
+    clean_content, total_count = lite_16_batch_test(all_raw_data, batch_size=500)
     
     if total_count > 0:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(clean_content)
-        print(f"SUCCESS: {total_count} leads saved in batches of 500 to {output_file}", flush=True)
+        print(f"TEST SUCCESS: {total_count} leads saved to {output_file}", flush=True)
     else:
-        print("Zero leads found. Check your search query.", flush=True)
+        print("TEST FAILED: No emails found. Try a broader search query.", flush=True)
 
 if __name__ == "__main__":
-    run_scraper()
+    run_test_scraper()
