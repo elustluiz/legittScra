@@ -1,7 +1,8 @@
 import os, re, time, random, urllib.parse, html
 from faker import Faker
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth_sync
+# FIX: Updated import for latest playwright-stealth
+from playwright_stealth import Stealth
 
 def lite_16_extractor(text):
     """Lite 1.6 logic: Decode, Extract, Deduplicate"""
@@ -23,10 +24,13 @@ def run_stealth_harvest():
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(user_agent=fake.chrome())
         page = context.new_page()
-        stealth_sync(page) # Apply stealth masks
+        
+        # FIX: Updated stealth application method
+        stealth = Stealth()
+        stealth.apply_stealth_sync(page)
 
         all_content = ""
-        depth = 5 # Start with 5 pages to test stability
+        depth = 5 
         
         for p_idx in range(depth):
             query = manual_query if manual_query else f'"{fake.first_name()}" CEO "@talktalk.net"'
@@ -35,14 +39,13 @@ def run_stealth_harvest():
             print(f"Scraping Page {p_idx+1}: {url}")
             try:
                 page.goto(url, wait_until="networkidle", timeout=60000)
-                time.sleep(random.uniform(5, 10)) # Human-like pause
+                time.sleep(random.uniform(5, 10))
                 all_content += page.content()
             except Exception as e:
                 print(f"Error on page {p_idx+1}: {e}")
-                page.screenshot(path="debug_screenshot.png") # Save if it fails
+                page.screenshot(path="debug_screenshot.png")
                 break
 
-        # 2. Extract and Batch Leads
         emails = lite_16_extractor(all_content)
         
         if emails:
