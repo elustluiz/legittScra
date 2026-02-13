@@ -1,4 +1,4 @@
-name: Lite-16-VPN-Diagnostic
+name: Lite-16-Stealth-VPN
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         options: [google, bing, duckduckgo]
         default: 'google'
       custom_query:
-        description: 'Search Query'
+        description: 'Lead Search String'
         required: false
         default: ''
 
@@ -25,41 +25,45 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y openvpn
-          pip install requests faker playwright
+          pip install playwright playwright-stealth requests faker
           playwright install chromium
 
-      - name: Connect to Random VPN (with Robust Decoding)
+      - name: Connect to VPN (Robust Mode)
         run: |
           curl -s https://www.vpngate.net/api/iphone/ > vpn_list.csv
-          # Clean the base64 string using 'tr' to remove spaces/newlines before decoding
+          # Robust decoding logic to fix 'base64: invalid input'
           for i in {1..3}; do
             RAW_B64=$(grep -m $i "United States" vpn_list.csv | tail -n 1 | cut -d, -f15)
-            echo $RAW_B64 | tr -d '[:space:]' | base64 -d -i > client.ovpn || continue
+            echo "$RAW_B64" | tr -d '[:space:]' | base64 -di > client.ovpn || continue
             
             sudo openvpn --config client.ovpn --daemon
             sleep 20
-            # Verify if the connection actually changed the IP
             if curl -s --head https://www.google.com | grep "200 OK" > /dev/null; then
-              echo "VPN Connected Successfully!"
+              echo "VPN Connected!"
               break
             else
-              echo "Server unreachable, retrying..."
               sudo pkill openvpn
             fi
           done
 
-      - name: Run Scraper
+      - name: Run Stealth Scraper
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
           UI_QUERY: ${{ github.event.inputs.custom_query }}
         run: python my_scraper.py
 
-      - name: Upload Debug Artifacts
+      - name: Commit Leads
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add harvest_*.txt
+          git commit -m "Stealth Harvest: $(date)" || echo "No leads found"
+          git push
+      
+      - name: Upload Debug Screenshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: search-diagnostics
-          path: |
-            debug_screenshot.png
-            vpn_list.csv
+          name: diagnostic-screenshot
+          path: debug_screenshot.png
