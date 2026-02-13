@@ -1,64 +1,57 @@
-import os, requests, re, time, random, urllib.parse
+import os, requests, re, time, random, urllib.parse, html
 from faker import Faker
 
-def lite_16_batch_extractor(text, batch_size=500):
-    """Lite 1.6 Logic: Extract, Deduplicate, and Group"""
+def lite_16_extractor(text):
+    """Lite 1.6 logic: Decode, Extract, Deduplicate"""
+    clean_text = html.unescape(urllib.parse.unquote(text))
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-    
-    decoded_text = urllib.parse.unquote(text)
-    found_emails = re.findall(email_pattern, decoded_text)
-    unique_emails = sorted(list(set([e.lower() for e in found_emails])))
-    
-    batched_output = []
-    for i in range(0, len(unique_emails), batch_size):
-        batch_num = (i // batch_size) + 1
-        batched_output.append(f"--- BATCH {batch_num} (Count: {len(unique_emails[i:i+batch_size])}) ---")
-        batched_output.extend(unique_emails[i:i+batch_size])
-        batched_output.append("\n")
-        
-    return "\n".join(batched_output), len(unique_emails)
+    found = re.findall(email_pattern, clean_text)
+    return sorted(list(set([e.lower() for e in found])))
 
 def run_scraper():
+    # Log the VPN IP for tracking
+    try:
+        ip_info = requests.get('https://ipapi.co/json/', timeout=10).json()
+        print(f"--- VPN Active: {ip_info['ip']} ({ip_info['city']}, {ip_info['country_name']}) ---", flush=True)
+    except:
+        print("--- VPN active but location hidden ---", flush=True)
+
     engine = os.getenv('ENGINE', 'google')
     manual_query = os.getenv('UI_QUERY')
-    # Automatically reads '20' from the workflow dropdown
-    depth = int(os.getenv('DEPTH', '20')) 
+    depth = 20
     
     timestamp = time.strftime("%Y%m%d_%H%M")
-    output_file = f'harvest_{timestamp}.txt'
-    
+    file_path = f'harvest_{timestamp}.txt'
     fake = Faker()
-    all_raw_data = ""
-
-    print(f"--- Starting {depth}-Page High Volume Harvest ---", flush=True)
-
+    
+    all_data = ""
     for page in range(depth):
         query = manual_query if manual_query else f'"{fake.first_name()}" CEO "@talktalk.net"'
-        print(f"Page {page+1}: {query}", flush=True)
+        url = f"https://www.{engine}.com/search?q={urllib.parse.quote(query)}&start={page * 10}"
         
-        # Start parameter increases by 10 per page
-        url = f"https://www.{engine}.com/search?q={query.replace(' ', '+')}&start={page * 10}"
-
         try:
-            # Extended delay for 20-page safety
-            time.sleep(random.uniform(15, 25))
-            res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=20)
+            headers = {'User-Agent': fake.chrome()}
+            time.sleep(random.uniform(20, 30))
+            
+            res = requests.get(url, headers=headers, timeout=20)
             if res.status_code == 200:
-                all_raw_data += res.text
-            else:
-                print(f"Blocked at page {page+1}", flush=True)
+                all_data += res.text
+                print(f"Page {page+1} captured.", flush=True)
+            elif res.status_code == 429:
+                print(f"Rate limited on page {page+1}. Stopping to save data.", flush=True)
                 break
-        except:
-            continue
+        except: continue
 
-    clean_content, total_count = lite_16_batch_extractor(all_raw_data)
-    
-    if total_count > 0:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(clean_content)
-        print(f"SUCCESS: {total_count} leads saved in batches of 500.", flush=True)
+    emails = lite_16_extractor(all_data)
+    if emails:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            # Group into batches of 500
+            for i in range(0, len(emails), 500):
+                f.write(f"--- BATCH {(i//500)+1} (Size: {len(emails[i:i+500])}) ---\n")
+                f.write("\n".join(emails[i:i+500]) + "\n\n")
+        print(f"SUCCESS: {len(emails)} emails saved in batches of 500.", flush=True)
     else:
-        print("No leads found. Verify query filters.", flush=True)
+        print("No leads found. The search engine might be serving a CAPTCHA.", flush=True)
 
 if __name__ == "__main__":
     run_scraper()
