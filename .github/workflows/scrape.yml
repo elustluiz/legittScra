@@ -1,4 +1,4 @@
-name: Lite-16-High-Volume
+name: Lite-16-VPN-Rotator
 
 on:
   workflow_dispatch:
@@ -8,13 +8,8 @@ on:
         type: choice
         options: [google, bing, duckduckgo]
         default: 'google'
-      search_depth:
-        description: 'Pages (Total Results)'
-        type: choice
-        options: ['1', '5', '10', '20'] # Added 20 here
-        default: '20'
       custom_query:
-        description: 'Search Base'
+        description: 'Search Query'
         required: false
         default: ''
 
@@ -27,27 +22,34 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Install OpenVPN
+        # Installs the VPN client on the GitHub runner
+        run: sudo apt-get update && sudo apt-get install -y openvpn
 
-      - name: Install dependencies
-        # FIX: Explicitly installing faker to prevent the error in image_a1ec76.png
-        run: pip install requests faker
+      - name: Connect to Random VPN
+        # Fetches a random .ovpn file and connects in the background
+        run: |
+          curl -s https://www.vpngate.net/api/iphone/ > vpn_list.csv
+          # Grabs a random Base64 config from the list and saves it
+          grep -m 1 "United States" vpn_list.csv | cut -d, -f15 | base64 -d > client.ovpn || \
+          grep -m 1 "Japan" vpn_list.csv | cut -d, -f15 | base64 -d > client.ovpn
+          sudo openvpn --config client.ovpn --daemon
+          sleep 15 # Wait for connection to stabilize
 
       - name: Run Lite 1.6 Scraper
         env:
           PYTHONUNBUFFERED: "1"
           ENGINE: ${{ github.event.inputs.search_engine }}
-          DEPTH: ${{ github.event.inputs.search_depth }}
           UI_QUERY: ${{ github.event.inputs.custom_query }}
-        run: python my_scraper.py
-      
+          DEPTH: '20'
+        run: |
+          pip install requests faker
+          python my_scraper.py
+
       - name: Commit Leads
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add harvest_*.txt
-          git commit -m "Batch Harvest: $(date)" || echo "No new leads"
+          git commit -m "VPN Harvest: $(date)" || echo "No leads found"
           git push
