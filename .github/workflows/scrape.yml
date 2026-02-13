@@ -25,25 +25,25 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y openvpn
-          # FIX: Ensuring specific compatible versions are installed
           pip install playwright playwright-stealth requests faker
           playwright install chromium
 
       - name: Connect to VPN (Robust Mode)
         run: |
           curl -s https://www.vpngate.net/api/iphone/ > vpn_list.csv
-          # Robust decoding logic with -di flags
-          for i in {1..3}; do
+          # Robust decoding logic with -di flags to avoid the crash in image_94e580.png
+          for i in {1..5}; do
             RAW_B64=$(grep -m $i "United States" vpn_list.csv | tail -n 1 | cut -d, -f15)
-            echo "$RAW_B64" | tr -d '[:space:]' | base64 -di > client.ovpn || continue
-            
-            sudo openvpn --config client.ovpn --daemon
-            sleep 20
-            if curl -s --head https://www.google.com | grep "200 OK" > /dev/null; then
-              echo "VPN Connected!"
-              break
-            else
-              sudo pkill openvpn
+            if [ -n "$RAW_B64" ]; then
+              echo "$RAW_B64" | tr -d '[:space:]' | base64 -di > client.ovpn || continue
+              sudo openvpn --config client.ovpn --daemon
+              sleep 25
+              if curl -s --head https://www.google.com | grep "200 OK" > /dev/null; then
+                echo "VPN Connected Successfully!"
+                break
+              else
+                sudo pkill openvpn
+              fi
             fi
           done
 
@@ -59,9 +59,9 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add harvest_*.txt
-          git commit -m "Stealth Harvest: $(date)" || echo "No leads found"
+          git commit -m "Stealth Pagination Harvest: $(date)" || echo "No leads found"
           git push
-      
+
       - name: Upload Debug Screenshot
         if: always()
         uses: actions/upload-artifact@v4
